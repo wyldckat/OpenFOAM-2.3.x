@@ -77,7 +77,7 @@ void Parser::ignoreDir(const std::string& name)
 }
 
 
-void Parser::includeFile(const std::string& name)
+void Parser::includeFile(const std::string& name, const std::string& dirPath)
 {
     if (!visitedFiles.insert(name).second)
     {
@@ -85,10 +85,26 @@ void Parser::includeFile(const std::string& name)
     }
 
     // use stdio and buffering within Coco/R -- (faster)
-    FILE *fh = fopen(name.c_str(), "r");
+    FILE *fh = NULL;
+    std::string newReferenceDirPath;
+    std::string actualName = name;
+    
+    if(!dirPath.empty())
+    {
+        const std::string pathName = dirPath + name;
+
+        fh = fopen(pathName.c_str(), "r");
+        newReferenceDirPath = dirPath;
+        actualName = pathName;
+    }
+    else
+    {
+        fh = fopen(name.c_str(), "r");
+    }
+    
     if (fh)
     {
-        std::cout << depFile << ": " << name << "\n";
+        std::cout << depFile << ": " << actualName << "\n";
     }
     else
     {
@@ -105,6 +121,7 @@ void Parser::includeFile(const std::string& name)
             if (fh)
             {
                 std::cout << depFile << ": " << pathName << "\n";
+                newReferenceDirPath = *iter;
                 break;
             }
         }
@@ -115,7 +132,7 @@ void Parser::includeFile(const std::string& name)
         Scanner scanner(fh);
         Parser  parser(&scanner);
 
-        parser.Parse();
+        parser.Parse(newReferenceDirPath);
         fclose(fh);
     }
     else
@@ -153,7 +170,7 @@ void Parser::importFile(const std::string& name)
     dotToSlash(javaFileName);
     javaFileName += ".java";
 
-    includeFile(javaFileName);
+    includeFile(javaFileName, std::string());
 }
 
 
@@ -182,7 +199,7 @@ void Parser::importDir(const std::string& name)
             if (ext && strlen(ext) == 5)
             {
                 std::string pathName = dirName + list->d_name;
-                includeFile(pathName);
+                includeFile(pathName, dirName);
             }
         }
 
@@ -341,11 +358,11 @@ void Parser::wmkdepend()
 					Get();
 					if (isUTF8())
 					{
-					    includeFile(t->toStringUTF8(1, t->length()-2));
+					    includeFile(t->toStringUTF8(1, t->length()-2), bufferedPath);
 					}
 					else
 					{
-					    includeFile(t->toString(1, t->length()-2));
+					    includeFile(t->toString(1, t->length()-2), bufferedPath);
 					}
 
 				}
@@ -363,11 +380,11 @@ void Parser::wmkdepend()
 				Get();
 				if (isUTF8())
 				{
-				    includeFile(t->toStringUTF8(1, t->length()-2));
+				    includeFile(t->toStringUTF8(1, t->length()-2), bufferedPath);
 				}
 				else
 				{
-				    includeFile(t->toString(1, t->length()-2));
+				    includeFile(t->toString(1, t->length()-2), bufferedPath);
 				}
 
 			}
@@ -425,8 +442,11 @@ void Parser::wmkdepend()
 
 
 
-void Parser::Parse()
+void Parser::Parse(const std::string& refDirPath)
 {
+    //keep record of the first reference directory path
+    bufferedPath = refDirPath;
+
 	t = NULL;
 	// might call Parse() twice
 	if (dummyToken) {
@@ -446,6 +466,7 @@ Parser::Parser(Scanner* scan, Errors* err)
 	dummyToken(NULL),
 	deleteErrorsDestruct_(!err),
 	errDist(minErrDist),
+	bufferedPath(),
 	scanner(scan),
 	errors(err),
 	t(NULL),

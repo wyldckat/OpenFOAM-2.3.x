@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
     wmake::Parser::sourceFile = sourceFile;
     wmake::Parser::depFile = depFile;
 
-    wmake::Parser::includeFile(sourceFile);
+    wmake::Parser::includeFile(sourceFile, std::string());
 
     return 0;
 }

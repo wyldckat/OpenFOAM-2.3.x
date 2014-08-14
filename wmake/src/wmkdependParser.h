@@ -104,6 +104,9 @@ class Parser
 	Token *dummyToken;
 	bool deleteErrorsDestruct_; //!< delete the 'errors' member in destructor
 	int  errDist;
+  
+    //! path for the directory where the buffered file is located
+    std::string bufferedPath;
 
 	void SynErr(int n);         //!< Handle syntax error 'n'
 	void Get();
@@ -150,7 +153,8 @@ public:
     static void ignoreDir(const std::string& name);
 
     //! Include file
-    static void includeFile(const std::string& name);
+    static void includeFile(const std::string& name,
+                            const std::string& dirPath);
 
 /*---------------------------------------------------------------------------*/
 
@@ -161,7 +165,7 @@ public:
 	 */
 	Parser(Scanner* scan, Errors* err = 0);
 	~Parser();
-	void Parse();                          //!< Execute the parse operation
+	void Parse(const std::string& refDirPath); //!< Execute the parse operation
 	void SemErr(const std::wstring& msg);  //!< Handle semantic error
 	bool isUTF8() const;   //!< Return true if scanner buffer is UTF8
 
