@@ -147,6 +147,13 @@ struct HashEntry* visitedFiles[HASH_TABLE_SIZE];
 struct HashEntry* visitedDirs[HASH_TABLE_SIZE];
 
 
+int currentBuffer = 0;                     /* Buffer pointer stack counter */
+YY_BUFFER_STATE buffers[FILE_STACK_SIZE];  /* Buffer pointer stack */
+
+/* Directory path for the file loaded on the respective buffer pointer stack */
+char* buffers_dirpath[FILE_STACK_SIZE];
+
+
 int main(int argc, char* argv[])
 {
     char *basePos, *dotPos;
@@ -248,6 +255,9 @@ int main(int argc, char* argv[])
         free(objectFile);
     }
 
+    /* Just in case, avoid memory garbage */
+    buffers_dirpath[currentBuffer] = NULL;
+
     nextFile(sourceFile);
     yylex();
 
@@ -263,10 +273,6 @@ int main(int argc, char* argv[])
 
     return 0;
 }
-
-
-int currentBuffer = 0;                     /* Buffer pointer stack counter */
-YY_BUFFER_STATE buffers[FILE_STACK_SIZE];  /* Buffer pointer stack */
 
 
 /*
@@ -313,6 +319,28 @@ void nextFile(const char* fileName)
     /* Pointer to new file which is set if the file is successfully opened */
     FILE* newyyin = NULL;
 
+    /* First check if the file is on the same path as the file on the current buffer */
+    if(buffers_dirpath[currentBuffer]!=NULL)
+    {
+        char* pathName = addDirectoryName(buffers_dirpath[currentBuffer], fileName);
+
+        if ((newyyin = fopen(pathName, "r")))
+        {
+            printf("%s: %s\n", depFile, pathName);
+            buffers[currentBuffer++] = YY_CURRENT_BUFFER;
+            yy_switch_to_buffer(yy_create_buffer(newyyin, YY_BUF_SIZE));
+
+            buffers_dirpath[currentBuffer] = buffers_dirpath[currentBuffer-1];
+
+            free(pathName);
+
+            return;
+        }
+
+        free(pathName);
+    }
+
+    
     if (!(newyyin = fopen(fileName, "r")))
     {
         int d;
@@ -326,6 +354,8 @@ void nextFile(const char* fileName)
                 buffers[currentBuffer++] = YY_CURRENT_BUFFER;
                 yy_switch_to_buffer(yy_create_buffer(newyyin, YY_BUF_SIZE));
 
+                buffers_dirpath[currentBuffer] = directories[d];
+                
                 free(pathName);
 
                 return;
@@ -366,6 +396,8 @@ void nextFile(const char* fileName)
 
         buffers[currentBuffer++] = YY_CURRENT_BUFFER;
         yy_switch_to_buffer(yy_create_buffer(newyyin, YY_BUF_SIZE));
+
+        buffers_dirpath[currentBuffer] = NULL;
     }
 }
 
